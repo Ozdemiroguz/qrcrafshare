@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Account - QR Craft Share</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/logo.png">
+
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.2.0/firebase-firestore.js";
+        import { firebaseConfig } from "./js/config.js";
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Function to generate a simple UUID for the browser ID
+        const generateUUID = () => {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        };
+
+        // Get or create a unique ID for this browser and store it
+        const getOrCreateBrowserId = () => {
+            let browserId = localStorage.getItem('browserId');
+            if (!browserId) {
+                browserId = generateUUID();
+                localStorage.setItem('browserId', browserId);
+            }
+            return browserId;
+        };
+
+        const browserId = getOrCreateBrowserId();
+
+        const validateEmail = (email) => {
+            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return regex.test(email);
+        };
+
+        const submitDeletionRequest = async () => {
+            const emailInput = document.getElementById("email");
+            const submitButton = document.getElementById("submitButton");
+            const messageDiv = document.getElementById("form-message");
+            const email = emailInput.value.trim();
+
+            if (!email) {
+                messageDiv.textContent = 'Please fill in your email.';
+                messageDiv.className = 'message error';
+                return;
+            }
+            if (!validateEmail(email)) {
+                messageDiv.textContent = 'Please enter a valid email address.';
+                messageDiv.className = 'message error';
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.textContent = 'Submitting...';
+
+            try {
+                // Use the unique browserId as the document ID
+                const requestRef = doc(db, "deletion_requests", browserId);
+
+                // setDoc will fail if the document already exists because our security
+                // rules do not allow updates, only creation.
+                await setDoc(requestRef, {
+                    email: email,
+                    requestedAt: serverTimestamp()
+                });
+
+                // Set flag in localStorage for instant UI feedback on reload
+                localStorage.setItem('deletionRequested', 'true');
+
+                emailInput.disabled = true;
+                submitButton.textContent = 'Request Submitted';
+
+                messageDiv.textContent = 'Your deletion request has been submitted successfully.';
+                messageDiv.className = 'message success';
+
+            } catch (error) {
+                // If permission is denied, it's highly likely the document already exists.
+                if (error.code === 'permission-denied') {
+                    messageDiv.textContent = 'A request from this device has already been submitted.';
+                    messageDiv.className = 'message success'; // Use success style for clarity
+                    emailInput.disabled = true;
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Request Submitted';
+                    // Set the local flag anyway to prevent repeated attempts
+                    localStorage.setItem('deletionRequested', 'true');
+                } else {
+                    console.error("Error submitting request:", error);
+                    messageDiv.textContent = 'An error occurred. Please try again later.';
+                    messageDiv.className = 'message error';
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Request Deletion';
+                }
+            }
+        };
+
+        window.onload = () => {
+            const submitButton = document.getElementById("submitButton");
+            const emailInput = document.getElementById("email");
+            const messageDiv = document.getElementById("form-message");
+
+            // Check if a deletion request has already been submitted
+            if (localStorage.getItem('deletionRequested') === 'true') {
+                emailInput.disabled = true;
+                submitButton.disabled = true;
+                submitButton.textContent = 'Request Submitted';
+                messageDiv.textContent = 'You have already submitted a deletion request from this device.';
+                messageDiv.className = 'message success';
+            } else {
+                submitButton.addEventListener("click", submitDeletionRequest);
+            }
+        };
+    </script>
+
+    <style>
+        :root {
+            --primary-color: #8A2BE2;
+            /* BlueViolet */
+            --secondary-color: #FF1493;
+            /* DeepPink */
+            --gradient: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #0A0A0A;
+            color: #FFFFFF;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 500px;
+            background: linear-gradient(135deg, #1A1A2E, #16213E);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .logo-container img {
+            max-height: 80px;
+            margin-bottom: 20px;
+            border-radius: 15px;
+        }
+
+        .logo-container h1 {
+            color: #FFFFFF;
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .container p {
+            color: #BBBBBB;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin: 15px 0;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 5px;
+            background-color: #1A1A1A;
+            color: #FFFFFF;
+            border: 1px solid #333;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: var(--gradient);
+            color: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            font-weight: bold;
+        }
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(138, 43, 226, 0.4);
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            display: none;
+        }
+
+        .message.success {
+            background-color: #28a745;
+            display: block;
+        }
+
+        .message.error {
+            background-color: #dc3545;
+            display: block;
+        }
+
+        .footer-link {
+            color: #BBBBBB;
+            text-decoration: none;
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Deletion Form -->
+    <div class="container">
+        <div class="logo-container">
+            <a href="index.html"><img src="assets/logo.png" alt="QR Craft Share Logo"></a>
+            <h1>QR Craft Share</h1>
+        </div>
+        <h2>Request Account Deletion</h2>
+        <p>Enter your email to request the permanent deletion of your account and associated data.</p>
+        <div class="form-group">
+            <input type="email" id="email" placeholder="Enter your email" required>
+        </div>
+        <button type="button" id="submitButton">Request Deletion</button>
+        <div id="form-message"></div>
+    </div>
+
+    <a href="index.html" class="footer-link">Back to Home</a>
+</body>
+
+</html>

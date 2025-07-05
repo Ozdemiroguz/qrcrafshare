@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Anyone can create a document in the 'deletion_requests' collection.
+    // They cannot read, update, or delete any documents, which keeps submissions private.
+    match /deletion_requests/{docId} {
+      allow read, update, delete: if false;
+      allow create: if true;
+    }
+
+    // Example rule for a 'users' collection.
+    // Only an authenticated user can access their own documents.
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Deny all other access to prevent unauthorized reads/writes.
+  }
+} 
