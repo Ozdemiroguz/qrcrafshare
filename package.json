@@ -1,0 +1,13 @@
+{
+    "name": "qrcraft-shareweb",
+    "version": "1.0.0",
+    "description": "Website for QR Craft Share App",
+    "main": "index.html",
+    "scripts": {
+        "build": "node generate-config.js",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {}
+}
