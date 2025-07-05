@@ -1,26 +1,62 @@
 const fs = require('fs');
 const path = require('path');
 
-// --- Brute-force .env parsing ---
-const envPath = path.resolve(process.cwd(), '.env');
-const config = {};
-try {
-    const envFileContent = fs.readFileSync(envPath, 'utf8');
-    const lines = envFileContent.split('\n');
-    for (const line of lines) {
-        if (line.trim() && !line.startsWith('#')) {
-            const [key, value] = line.split('=', 2);
-            if (key && value) {
-                config[key.trim()] = value.replace(/^"|"$/g, '').trim(); // Remove quotes and trim
+// Check if we're running on Vercel (production) or locally (development)
+const isVercel = process.env.VERCEL === '1';
+
+let config = {};
+
+if (isVercel) {
+    // On Vercel: Read from process.env (environment variables set in Vercel dashboard)
+    console.log('[Debug] Running on Vercel - reading from process.env');
+    config = {
+        PUBLIC_FIREBASE_API_KEY: process.env.PUBLIC_FIREBASE_API_KEY,
+        PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.PUBLIC_FIREBASE_AUTH_DOMAIN,
+        PUBLIC_FIREBASE_PROJECT_ID: process.env.PUBLIC_FIREBASE_PROJECT_ID,
+        PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.PUBLIC_FIREBASE_STORAGE_BUCKET,
+        PUBLIC_FIREBASE_MESSAGING_SENDER_ID: process.env.PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+        PUBLIC_FIREBASE_APP_ID: process.env.PUBLIC_FIREBASE_APP_ID,
+        PUBLIC_FIREBASE_MEASUREMENT_ID: process.env.PUBLIC_FIREBASE_MEASUREMENT_ID
+    };
+} else {
+    // Locally: Read from .env file
+    console.log('[Debug] Running locally - reading from .env file');
+    const envPath = path.resolve(process.cwd(), '.env');
+    try {
+        const envFileContent = fs.readFileSync(envPath, 'utf8');
+        const lines = envFileContent.split('\n');
+        for (const line of lines) {
+            if (line.trim() && !line.startsWith('#')) {
+                const [key, value] = line.split('=', 2);
+                if (key && value) {
+                    config[key.trim()] = value.replace(/^"|"$/g, '').trim();
+                }
             }
         }
+        console.log('[Debug] Successfully parsed .env file');
+    } catch (e) {
+        console.error(`[Debug] Could not read or parse .env file: ${e.message}`);
+        process.exit(1);
     }
-    console.log('[Debug] Directly parsed .env into config object.');
-} catch (e) {
-    console.error(`[Debug] Could not read or parse .env file: ${e.message}`);
+}
+
+// Check if all required variables are present
+const requiredVars = [
+    'PUBLIC_FIREBASE_API_KEY',
+    'PUBLIC_FIREBASE_AUTH_DOMAIN',
+    'PUBLIC_FIREBASE_PROJECT_ID',
+    'PUBLIC_FIREBASE_STORAGE_BUCKET',
+    'PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+    'PUBLIC_FIREBASE_APP_ID',
+    'PUBLIC_FIREBASE_MEASUREMENT_ID'
+];
+
+const missingVars = requiredVars.filter(varName => !config[varName]);
+if (missingVars.length > 0) {
+    console.error('Error: Missing required environment variables:');
+    console.error(missingVars.join('\n'));
     process.exit(1);
 }
-// --- End brute-force parsing ---
 
 const configDir = './js';
 const configPath = path.join(configDir, 'config.js');
